@@ -45,6 +45,10 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Fix Kotlin duplicate classes
+        run: |
+          echo "allprojects { configurations.all { resolutionStrategy { force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.0' force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.0' force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.0' } } }" >> android/build.gradle
+
       - name: Build debug APK
         run: |
           cd android
