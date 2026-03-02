@@ -317,16 +317,35 @@ function HomeScreen({ navigate }: { navigate: (r: Route) => void }) {
       return p.name.toLowerCase().includes(q) || p.country.toLowerCase().includes(q) || p.material.toLowerCase().includes(q)
     })
 
-  const handleExport = () => {
+const handleExport = async () => {
+  try {
     const clean = products.map(({ photo: _p, ...rest }) => rest)
     const json = JSON.stringify({ version: 1, exportDate: new Date().toISOString(), products: clean, history }, null, 2)
-    const bytes = new TextEncoder().encode(json)
-    let bin = ''; bytes.forEach(b => bin += String.fromCharCode(b))
-    const a = document.createElement('a')
-    a.href = 'data:application/json;base64,' + btoa(bin)
-    a.download = 'artisanat-stock-' + new Date().toISOString().slice(0, 10) + '.json'
-    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    const filename = 'artisanat-stock-' + new Date().toISOString().slice(0, 10) + '.json'
+
+    // Essaie d'abord le téléchargement web classique
+    try {
+      const bytes = new TextEncoder().encode(json)
+      let bin = ''; bytes.forEach(b => bin += String.fromCharCode(b))
+      const a = document.createElement('a')
+      a.href = 'data:application/json;base64,' + btoa(bin)
+      a.download = filename
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    } catch {
+      // Sur Android WebView : utilise le partage natif
+      if (navigator.share) {
+        const file = new File([json], filename, { type: 'application/json' })
+        await navigator.share({ files: [file], title: 'Export Stock' })
+      } else {
+        // Fallback : copie dans le presse-papier
+        await navigator.clipboard.writeText(json)
+        alert('✓ Données copiées dans le presse-papier')
+      }
+    }
+  } catch (e) {
+    alert('Erreur export : ' + String(e))
   }
+}
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     setImportError(''); setImportPreview(null)
