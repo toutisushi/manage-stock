@@ -67,7 +67,7 @@ function loadHistory(): HistoryEntry[] {
 }
 
 // ============================================================
-// CONTEXT
+// CONTEXTƒ
 // ============================================================
 interface StockContextType {
   products: Product[]; history: HistoryEntry[]
@@ -320,27 +320,49 @@ function HomeScreen({ navigate }: { navigate: (r: Route) => void }) {
 const handleExport = async () => {
   try {
     const clean = products.map(({ photo: _p, ...rest }) => rest)
-    const json = JSON.stringify({ version: 1, exportDate: new Date().toISOString(), products: clean, history }, null, 2)
+    const json = JSON.stringify(
+      { version: 1, exportDate: new Date().toISOString(), products: clean, history },
+      null, 2
+    )
     const filename = 'artisanat-stock-' + new Date().toISOString().slice(0, 10) + '.json'
 
-    // Essaie d'abord le téléchargement web classique
-    try {
+    // Détecte si on est dans Capacitor (Android)
+    const isCapacitor = !!(window as unknown as Record<string, unknown>)['Capacitor']
+
+    if (isCapacitor) {
+      // Import dynamique des plugins Capacitor
+      const { Filesystem, Directory } = await import('@capacitor/filesystem')
+      const { Share } = await import('@capacitor/share')
+
+      // Écrit le fichier dans le dossier Documents Android
+      await Filesystem.writeFile({
+        path: filename,
+        data: json,
+        directory: Directory.Documents,
+        encoding: 'utf8' as never,
+      })
+
+      // Récupère l'URI du fichier
+      const fileUri = await Filesystem.getUri({
+        path: filename,
+        directory: Directory.Documents,
+      })
+
+      // Ouvre le panneau de partage Android natif
+      await Share.share({
+        title: 'Export Stock Artisanat',
+        text: 'Données exportées',
+        url: fileUri.uri,
+        dialogTitle: 'Partager / Sauvegarder',
+      })
+    } else {
+      // Navigateur web classique
       const bytes = new TextEncoder().encode(json)
       let bin = ''; bytes.forEach(b => bin += String.fromCharCode(b))
       const a = document.createElement('a')
       a.href = 'data:application/json;base64,' + btoa(bin)
       a.download = filename
       document.body.appendChild(a); a.click(); document.body.removeChild(a)
-    } catch {
-      // Sur Android WebView : utilise le partage natif
-      if (navigator.share) {
-        const file = new File([json], filename, { type: 'application/json' })
-        await navigator.share({ files: [file], title: 'Export Stock' })
-      } else {
-        // Fallback : copie dans le presse-papier
-        await navigator.clipboard.writeText(json)
-        alert('✓ Données copiées dans le presse-papier')
-      }
     }
   } catch (e) {
     alert('Erreur export : ' + String(e))
