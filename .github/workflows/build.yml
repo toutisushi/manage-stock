@@ -31,7 +31,7 @@ jobs:
         run: npm install
 
       - name: Install Capacitor
-        run: npm install @capacitor/core @capacitor/cli @capacitor/android
+        run: npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/filesystem @capacitor/share
 
       - name: Build Vite app
         run: npm run build
