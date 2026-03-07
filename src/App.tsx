@@ -67,7 +67,7 @@ function loadHistory(): HistoryEntry[] {
 }
 
 // ============================================================
-// CONTEXTƒ
+// CONTEXT
 // ============================================================
 interface StockContextType {
   products: Product[]; history: HistoryEntry[]
@@ -303,6 +303,9 @@ function HomeScreen({ navigate }: { navigate: (r: Route) => void }) {
   const [showAdd, setShowAdd] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [showExport, setShowExport] = useState(false)
+  const [exportJson, setExportJson] = useState('')
+  const [exportCopied, setExportCopied] = useState(false)
   const [importPreview, setImportPreview] = useState<{ products: Product[]; history: HistoryEntry[]; filename: string } | null>(null)
   const [importError, setImportError] = useState('')
 
@@ -317,57 +320,33 @@ function HomeScreen({ navigate }: { navigate: (r: Route) => void }) {
       return p.name.toLowerCase().includes(q) || p.country.toLowerCase().includes(q) || p.material.toLowerCase().includes(q)
     })
 
-const handleExport = async () => {
-  try {
+  const handleExport = () => {
     const clean = products.map(({ photo: _p, ...rest }) => rest)
-    const json = JSON.stringify(
-      { version: 1, exportDate: new Date().toISOString(), products: clean, history },
-      null, 2
-    )
-    const filename = 'artisanat-stock-' + new Date().toISOString().slice(0, 10) + '.json'
-
-    // Détecte si on est dans Capacitor (Android)
-    const isCapacitor = !!(window as unknown as Record<string, unknown>)['Capacitor']
-
-    if (isCapacitor) {
-      // Import dynamique des plugins Capacitor
-      const { Filesystem, Directory } = await import('@capacitor/filesystem')
-      const { Share } = await import('@capacitor/share')
-
-      // Écrit le fichier dans le dossier Documents Android
-      await Filesystem.writeFile({
-        path: filename,
-        data: json,
-        directory: Directory.Documents,
-        encoding: 'utf8' as never,
-      })
-
-      // Récupère l'URI du fichier
-      const fileUri = await Filesystem.getUri({
-        path: filename,
-        directory: Directory.Documents,
-      })
-
-      // Ouvre le panneau de partage Android natif
-      await Share.share({
-        title: 'Export Stock Artisanat',
-        text: 'Données exportées',
-        url: fileUri.uri,
-        dialogTitle: 'Partager / Sauvegarder',
-      })
-    } else {
-      // Navigateur web classique
-      const bytes = new TextEncoder().encode(json)
-      let bin = ''; bytes.forEach(b => bin += String.fromCharCode(b))
-      const a = document.createElement('a')
-      a.href = 'data:application/json;base64,' + btoa(bin)
-      a.download = filename
-      document.body.appendChild(a); a.click(); document.body.removeChild(a)
-    }
-  } catch (e) {
-    alert('Erreur export : ' + String(e))
+    const json = JSON.stringify({ version: 1, exportDate: new Date().toISOString(), products: clean, history }, null, 2)
+    setExportJson(json)
+    setExportCopied(false)
+    setShowExport(true)
   }
-}
+
+  const handleCopyExport = () => {
+    navigator.clipboard.writeText(exportJson).then(() => {
+      setExportCopied(true)
+      setTimeout(() => setExportCopied(false), 3000)
+    }).catch(() => {
+      // fallback si clipboard API non disponible
+      const ta = document.createElement('textarea')
+      ta.value = exportJson
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.focus()
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+      setExportCopied(true)
+      setTimeout(() => setExportCopied(false), 3000)
+    })
+  }
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     setImportError(''); setImportPreview(null)
@@ -432,7 +411,7 @@ const handleExport = async () => {
         <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
           <button onClick={() => setShowAdd(true)} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: '0.85rem', fontWeight: 600 }}>+ Ajouter</button>
           <button onClick={() => setShowHistory(true)} style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', fontSize: '0.85rem', fontWeight: 500 }}>🕐 Historique</button>
-          <button onClick={handleExport} style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', fontSize: '0.85rem' }} title="Exporter">📤</button>
+          <button onClick={handleExport} style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', fontSize: '0.85rem' }} title="Exporter">📤 Export</button>
           <button onClick={() => { setShowImport(true); setImportPreview(null); setImportError('') }} style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', fontSize: '0.85rem' }} title="Importer">📥</button>
         </div>
 
@@ -491,6 +470,25 @@ const handleExport = async () => {
             ))}
           </div>
         )}
+      </Modal>
+
+      {/* Modal Export */}
+      <Modal open={showExport} onClose={() => setShowExport(false)} title="📤 Exporter les données" maxWidth={560}>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+          {products.length} produit(s) exporté(s) · Copiez ce JSON et sauvegardez-le dans un fichier .json
+        </p>
+        <textarea
+          readOnly
+          value={exportJson}
+          style={{ width: '100%', height: 220, padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: '0.72rem', fontFamily: 'monospace', color: 'var(--text)', background: 'var(--surface2)', resize: 'none', outline: 'none' }}
+          onFocus={e => e.target.select()}
+        />
+        <div style={{ display: 'flex', gap: 10, marginTop: 12, justifyContent: 'flex-end' }}>
+          <button onClick={() => setShowExport(false)} style={{ padding: '9px 18px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'transparent', fontSize: '0.85rem' }}>Fermer</button>
+          <button onClick={handleCopyExport} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: exportCopied ? 'var(--success)' : 'var(--accent)', color: '#fff', fontSize: '0.88rem', fontWeight: 600, transition: 'background 0.2s' }}>
+            {exportCopied ? '✓ Copié !' : '📋 Copier'}
+          </button>
+        </div>
       </Modal>
 
       {/* Modal Import */}
