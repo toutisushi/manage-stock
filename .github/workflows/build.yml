@@ -45,6 +45,14 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Add camera permission to AndroidManifest
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's|<application|<uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <application|' "$MANIFEST"
+          echo "Permissions added:"
+          grep -E "CAMERA|uses-feature" "$MANIFEST"
+
+
       - name: Fix Kotlin duplicate classes
         run: |
           echo "allprojects { configurations.all { resolutionStrategy { force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.0' force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.0' force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.0' } } }" >> android/build.gradle
