@@ -348,6 +348,17 @@ function HomeScreen({ navigate }: { navigate: (r: Route) => void }) {
     })
   }
 
+  const handleMailExport = () => {
+    const date = new Date().toISOString().slice(0, 10)
+    const subject = encodeURIComponent('Export Stock Artisanat - ' + date)
+    const body = encodeURIComponent(
+      'Bonjour,\n\nVeuillez trouver ci-dessous l\'export du stock artisanat du ' + date + '.\n\n' +
+      '--- DONNÉES JSON (copiez dans un fichier .json) ---\n\n' +
+      exportJson
+    )
+    window.location.href = 'mailto:?subject=' + subject + '&body=' + body
+  }
+
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     setImportError(''); setImportPreview(null)
     const file = e.target.files?.[0]; if (!file) return
@@ -483,8 +494,11 @@ function HomeScreen({ navigate }: { navigate: (r: Route) => void }) {
           style={{ width: '100%', height: 220, padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: '0.72rem', fontFamily: 'monospace', color: 'var(--text)', background: 'var(--surface2)', resize: 'none', outline: 'none' }}
           onFocus={e => e.target.select()}
         />
-        <div style={{ display: 'flex', gap: 10, marginTop: 12, justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button onClick={() => setShowExport(false)} style={{ padding: '9px 18px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'transparent', fontSize: '0.85rem' }}>Fermer</button>
+          <button onClick={handleMailExport} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#2980b9', color: '#fff', fontSize: '0.88rem', fontWeight: 600 }}>
+            ✉️ Envoyer par mail
+          </button>
           <button onClick={handleCopyExport} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: exportCopied ? 'var(--success)' : 'var(--accent)', color: '#fff', fontSize: '0.88rem', fontWeight: 600, transition: 'background 0.2s' }}>
             {exportCopied ? '✓ Copié !' : '📋 Copier'}
           </button>
